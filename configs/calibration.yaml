@@ -1,0 +1,16 @@
+pattern_cols: 7
+pattern_rows: 6
+center_distance_mm: 17
+
+R_gimbal2imubody: [1, 0, 0, 0, 1, 0,  0, 0, 1]
+
+camera_name: "daheng"
+exposure_ms: 2
+gamma: 0.5
+vid_pid: "2ba2:4d55"
+
+#####-----cboard参数-----#####
+quaternion_canid: 0x01
+bullet_speed_canid: 0x110
+send_canid: 0xff
+can_interface: "can0"

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 问题排查手册（先看这里）
+    url: https://github.com/yeyuqingzhu/JSU_RM_2027_infantry_2/blob/main/doc/troubleshooting.md
+    about: 构建/运行/联调踩过的坑，按症状检索；命中条目直接按解决方案执行。
+  - name: 上游项目 sp_vision_25
+    url: https://github.com/TongjiSuperPower/sp_vision_25
+    about: 本仓库大部分源码逐字来自同济大学 SuperPower 战队的这个项目，与上游有关的问题可直接反馈上游。

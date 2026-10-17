@@ -1,0 +1,38 @@
+./build/calibrate_camera assets/captured_20260725_172207
+[failure] assets/captured_20260725_172207/1.jpg
+[failure] assets/captured_20260725_172207/2.jpg
+[success] assets/captured_20260725_172207/3.jpg
+[failure] assets/captured_20260725_172207/4.jpg
+[failure] assets/captured_20260725_172207/5.jpg
+[failure] assets/captured_20260725_172207/6.jpg
+[success] assets/captured_20260725_172207/7.jpg
+[success] assets/captured_20260725_172207/8.jpg
+[failure] assets/captured_20260725_172207/9.jpg
+[success] assets/captured_20260725_172207/10.jpg
+[failure] assets/captured_20260725_172207/11.jpg
+[failure] assets/captured_20260725_172207/12.jpg
+[success] assets/captured_20260725_172207/13.jpg
+[success] assets/captured_20260725_172207/14.jpg
+[success] assets/captured_20260725_172207/15.jpg
+[failure] assets/captured_20260725_172207/16.jpg
+[success] assets/captured_20260725_172207/17.jpg
+[success] assets/captured_20260725_172207/18.jpg
+[success] assets/captured_20260725_172207/19.jpg
+[failure] assets/captured_20260725_172207/20.jpg
+[success] assets/captured_20260725_172207/21.jpg
+[success] assets/captured_20260725_172207/22.jpg
+[success] assets/captured_20260725_172207/23.jpg
+[success] assets/captured_20260725_172207/24.jpg
+[success] assets/captured_20260725_172207/25.jpg
+[success] assets/captured_20260725_172207/26.jpg
+[success] assets/captured_20260725_172207/27.jpg
+[failure] assets/captured_20260725_172207/28.jpg
+[success] assets/captured_20260725_172207/29.jpg
+[success] assets/captured_20260725_172207/30.jpg
+[success] assets/captured_20260725_172207/31.jpg
+[failure] assets/captured_20260725_172207/32.jpg
+[ WARN:0@6.734] global loadsave.cpp:241 findDecoder imread_('assets/captured_20260725_172207/33.jpg'): can't open/read file: check file path/integrity
+
+# 重投影误差: 0.0404px
+camera_matrix: [1300.7627604934805, 0, 654.54144634535146, 0, 1300.6777528724938, 504.03122427986557, 0, 0, 1]
+distort_coeffs: [-0.078138029872824671, 0.14166357212444497, 7.118880739726154e-05, 0.00064608863124597505, 0]

@@ -1,0 +1,4 @@
+exposure_ms: 15
+gamma: 0.5
+gain: 10
+vid_pid: "2ba2:4d55"

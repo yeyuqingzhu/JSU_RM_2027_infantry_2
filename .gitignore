@@ -1,0 +1,77 @@
+# =============================================================================
+# JSU_RM_2027_infantry_2 — 本仓库只入库「源码 + 文档」
+# 构建产物 / 模型权重 / 训练数据 / 厂商 SDK 预编译库 / 录制数据 一律不入库。
+# 需要这些文件的开发机在本地保留即可，git 不会跟踪。
+# =============================================================================
+
+# ---- 构建产物 ----
+build/
+build_*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+*.o
+*.obj
+
+# ---- 模型权重 / 推理模型 / 训练数据（体积大，见 NOTICE §4）----
+assets/
+model_cache/
+training/
+*.onnx
+*.bin
+*.pt
+*.pth
+*.engine
+*.blob
+*.weights
+
+# ---- 厂商相机 SDK 预编译库（不入库，来源见 README「依赖与准备」）----
+io/hikrobot/lib/
+io/mindvision/lib/
+io/daheng/lib/
+*.so
+*.so.*
+*.dll
+*.dylib
+*.cti
+*.a
+*.lib
+
+# ---- 运行 / 调试产物 ----
+logs/
+records/
+records_*/
+imgs/
+img-temp/
+testvideos/
+Camera/
+MvSdkLog/
+watchdog.sh
+*.mp4
+*.avi
+*.mkv
+*.csv
+core
+core.*
+
+# ---- 本地备份与笔记（不属于源码）----
+*.bak
+*.orig
+*.rej
+*.swp
+*~
+
+# ---- 编辑器 / IDE ----
+.vscode/
+.idea/
+*.code-workspace
+
+# ---- 本地 AI 代理配置与记忆库（不属于源码，仅存在于开发机）----
+.agents/
+.dsh-meow/
+.opencode/
+opencode.json
+.sentry-native/

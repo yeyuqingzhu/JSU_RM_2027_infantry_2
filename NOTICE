@@ -1,0 +1,68 @@
+NOTICE
+======
+
+本文件是本仓库（JSU_RM_2027_infantry_2）的来源与派生关系声明。
+凡使用、分发或再派生本仓库代码，均须保留本文件与 LICENSE 中的版权声明。
+
+1. 上游项目
+-----------
+项目名称 : sp_vision_25 —— 同济大学（Tongji University）SuperPower 战队 2025 赛季
+           自瞄（auto-aim）算法开源工程
+上游地址 : https://github.com/TongjiSuperPower/sp_vision_25
+上游快照 : commit 604e11943b7dc3a8b466cce6d72079e5d271b2b7
+           （2025-09-29 12:59:17 +0800，"add star history"）
+许可协议 : MIT License, Copyright (c) 2025 TongjiSuperPower
+拷贝时间 : 2026-10-17，上游工作副本全量拷入本仓库
+
+2. 派生关系
+-----------
+本仓库不是独立实现，而是上游 sp_vision_25 的派生工程：
+
+  * tools/ io/ tasks/ src/ tests/ calibration/ configs/ color_track_demo/
+    以及顶层 CMakeLists.txt、autostart.sh、buff_layout.xml、mpc_layout.xml、
+    .clang-format 的源码文件集合与内容，与上游快照逐文件比对一致，
+    除第 3 节列出的 30 个文件外为逐字沿用（verbatim copy）。
+  * 上游 readme.md 已从本仓库删除；其原始内容请到上游仓库阅读。
+  * 上游的 AGENTS.md、opencode.json、.opencode/、.sentry-native/、.vscode/、
+    以及模型权重/数据集/录制数据等非源码内容未纳入本仓库。
+
+3. 相对上游的改动（2026-10-17，diff -rq 逐文件比对结果：30 个文件有内容差异）
+---------------------------------------------------------------------------
+  3.1 tools/ 25 个源文件 + tools/CMakeLists.txt —— 迁移并补充详细中文注释，
+      接口与语义未变；CMake target 增加 -Wall -Wextra。
+  3.2 io/gimbal/gimbal.hpp、io/gimbal/gimbal.cpp —— 重写云台串口协议为 v3.0，
+      对接 lt-2027 哨兵下位机（921600 8N1、帧 0xFF…0x0D + crc8、线上单位由
+      弧度改为度制、28B 下行 / 42B 上行）。对外 API 仍为弧度制绝对角。
+  3.3 tests/camera_thread_test.cpp —— 修复分层重构后的编译错误。
+  3.4 .gitignore —— 重建，仅入库源码与文档。
+  3.5 doc/、AGENT.md —— 本仓库新增的文档体系（总体说明 / 目录树 / 可执行程序
+      说明 / 逐文件函数说明 / 问题排查手册）。
+  3.6 README.md、NOTICE、THIRD_PARTY_NOTICES.md、CITATION.cff、CONTRIBUTING.md、
+      SECURITY.md、CODE_OF_CONDUCT.md、CHANGELOG.md、.gitattributes、.github/ ——
+      本仓库新增的 GitHub 发布文件体系。
+  3.7 补齐 vendored 第三方组件的许可正文与登记（2026-10-17）：
+      io/serial/LICENSE（serial 库，MIT）、
+      tasks/auto_aim/planner/tinympc/LICENSE（TinyMPC，MIT）、
+      io/{daheng,hikrobot,mindvision}/LICENSE-VENDOR.md（三家相机 SDK 头文件为厂商
+      自有许可，明确不适用本仓库 MIT）、
+      color_track_demo/main.cpp 补 MIT SPDX 文件头（该文件属本队自有代码，见
+      THIRD_PARTY_NOTICES.md 第 4 节）。
+
+4. 未纳入本仓库的内容（仍属上游或第三方，未在此再分发）
+-------------------------------------------------------
+  * 模型权重与推理模型（assets/*.xml、*.bin、*.onnx）与训练数据集
+    assets/PinkTraining/ —— 见上游仓库 assets/。
+  * 海康 MVS / 迈德威视 MVSDK / 大恒 Galaxy 相机 SDK 的预编译库
+    （io/{hikrobot,mindvision,daheng}/lib/ 下的 .so、.cti 等）。
+    这些文件由各厂商以自有许可发布，本仓库不包含、也不再分发；
+    其头文件与 CMake 集成脚本沿用上游，仅作编译期接口声明之用。
+  * 构建产物、日志、录制数据、本地 AI 代理配置与记忆库。
+
+5. 第三方组件
+-------------
+见 THIRD_PARTY_NOTICES.md。
+
+6. 联系方式
+-----------
+本仓库维护者：JSU RoboMaster 战队视觉组（GitHub @yeyuqingzhu）。
+上游相关问题请提交到上游仓库。

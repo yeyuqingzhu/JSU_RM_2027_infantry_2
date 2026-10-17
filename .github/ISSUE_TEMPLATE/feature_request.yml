@@ -1,0 +1,51 @@
+name: 需求 / 改进建议
+description: 新功能、算法改进、重构、文档补充
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        本仓库是 [`sp_vision_25`](https://github.com/TongjiSuperPower/sp_vision_25) 的派生工程，
+        `io/` `tasks/` `src/` 绝大部分仍是上游原样代码。若你的建议与上游相关，也可以直接反馈给上游。
+  - type: textarea
+    id: motivation
+    attributes:
+      label: 要解决什么问题
+      description: 当前做法的痛点，或比赛/联调中的具体需求
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 打算怎么做；涉及哪些目录/文件
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 影响范围
+      multiple: true
+      options:
+        - tools（底层工具与函数）
+        - io（相机 / 云台 / CAN / 导航桥）
+        - tasks/auto_aim（识别、解算、跟踪、决策）
+        - tasks/auto_buff（打符）
+        - tasks/omniperception（全向感知）
+        - src（可执行入口）
+        - calibration / tests
+        - configs
+        - doc / AGENT.md
+        - 构建系统 / CI
+    validations:
+      required: true
+  - type: checkboxes
+    id: sync
+    attributes:
+      label: 与上游的关系
+      options:
+        - label: 该改动会修改上游文件（合并后需在 NOTICE 改动清单追加一行）
+          required: false
+        - label: 该改动只新增本队自己的文件
+          required: false

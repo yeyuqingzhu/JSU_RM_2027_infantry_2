@@ -1,0 +1,32 @@
+[success] assets/img_with_q/1.jpg
+[success] assets/img_with_q/2.jpg
+[success] assets/img_with_q/3.jpg
+[success] assets/img_with_q/4.jpg
+[success] assets/img_with_q/5.jpg
+[success] assets/img_with_q/6.jpg
+[success] assets/img_with_q/7.jpg
+[success] assets/img_with_q/8.jpg
+[success] assets/img_with_q/9.jpg
+[success] assets/img_with_q/10.jpg
+[success] assets/img_with_q/11.jpg
+[success] assets/img_with_q/12.jpg
+[success] assets/img_with_q/13.jpg
+[success] assets/img_with_q/14.jpg
+[success] assets/img_with_q/15.jpg
+[success] assets/img_with_q/16.jpg
+[success] assets/img_with_q/17.jpg
+[failure] assets/img_with_q/18.jpg
+[success] assets/img_with_q/19.jpg
+[success] assets/img_with_q/20.jpg
+[success] assets/img_with_q/21.jpg
+[success] assets/img_with_q/22.jpg
+[success] assets/img_with_q/23.jpg
+[success] assets/img_with_q/24.jpg
+[success] assets/img_with_q/25.jpg
+[success] assets/img_with_q/26.jpg
+[success] assets/img_with_q/27.jpg
+[ WARN:0@5.582] global loadsave.cpp:241 findDecoder imread_('assets/img_with_q/28.jpg'): can't open/read file: check file path/integrity
+
+# 重投影误差: 0.0804px
+camera_matrix: [1288.6325856129706, 0, 651.58054978586574, 0, 1288.7289828984867, 520.08079232425428, 0, 0, 1]
+distort_coeffs: [-0.215169573071674, 0.14708203095860803, 0.00031748655098327335, 0.00023903104647005036, 0]

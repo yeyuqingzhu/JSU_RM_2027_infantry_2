@@ -1,0 +1,77 @@
+name: Bug 报告
+description: 构建失败、运行崩溃、行为不符合预期
+title: "[Bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请先查 [`doc/troubleshooting.md`](../blob/main/doc/troubleshooting.md)（按症状检索）——
+        命中条目直接按「解决方案」执行即可，不必新开 issue。
+        报告构建/运行问题请务必附上**完整报错原文**（含文件名与行号）。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 现象
+      description: 发生了什么？期望是什么？
+      placeholder: 运行 standard 时 rc=134，日志最后一行是 ...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 具体到命令与配置文件
+      placeholder: |
+        1. cmake -B build -S . && cmake --build build -j
+        2. ./build/standard_mv -c configs/standard3.yaml
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 报错原文 / 日志
+      description: 直接粘贴，不要只写"编译不过"
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: 提交号
+      description: "`git rev-parse --short HEAD` 的结果"
+      placeholder: e06ec39
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: 发生在哪个环节
+      options:
+        - CMake 配置 / 生成阶段
+        - 编译 / 链接
+        - 运行时崩溃
+        - 运行结果不符合预期（算法）
+        - 实机联调（相机 / 云台 / 下位机）
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 环境
+      description: 架构、系统版本、依赖版本、是否装了相机 SDK / ROS2 / OpenVINO 版本
+      placeholder: |
+        Ubuntu 22.04 x86_64, GCC 11.4, OpenVINO 2023.3.0, OpenCV 4.8 (/usr/local), 未装 ROS2
+        相机: 迈德威视 MV-SUA133GC-T
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 自检
+      options:
+        - label: 我已阅读 doc/troubleshooting.md，未命中相同问题
+          required: true
+        - label: 我已确认问题与本地模型权重/SDK 库缺失无关
+          required: false

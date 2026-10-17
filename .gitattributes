@@ -1,0 +1,27 @@
+# 默认按文本处理并统一换行为 LF（Linux 目标平台）
+* text=auto eol=lf
+
+# ---- 源码 ----
+*.cpp   text diff=cpp
+*.hpp   text diff=cpp
+*.h     text diff=cpp
+*.cc    text diff=cpp
+*.sh    text eol=lf
+*.md    text
+*.yaml  text
+*.yml   text
+*.txt   text
+
+# ---- 二进制（正常情况下已被 .gitignore 排除）----
+*.so    binary
+*.so.*  binary
+*.cti   binary
+*.bin   binary
+*.onnx  binary
+*.pt    binary
+
+# ---- 第三方 vendored 代码：不计入仓库语言统计 ----
+io/daheng/**                      linguist-vendored
+io/hikrobot/**                    linguist-vendored
+io/mindvision/**                  linguist-vendored
+tasks/auto_aim/planner/tinympc/** linguist-vendored

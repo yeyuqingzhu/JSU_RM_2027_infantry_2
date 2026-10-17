@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "若你在学术成果中使用本工程，请同时引用上游项目 sp_vision_25。"
+title: "JSU_RM_2027_infantry_2 — RoboMaster 2027 步兵自瞄算法工程（sp_vision_25 派生工程）"
+abstract: >-
+  RoboMaster 2027 赛季步兵（2 号机）自瞄算法工程。本工程由同济大学 SuperPower 战队
+  开源的 sp_vision_25 修改而来：算法、接口、底层工具全部分层模块化，云台串口协议改造为
+  对接 lt-2027 哨兵下位机的 v3.0 协议。
+type: software
+license: MIT
+repository-code: "https://github.com/yeyuqingzhu/JSU_RM_2027_infantry_2"
+url: "https://github.com/yeyuqingzhu/JSU_RM_2027_infantry_2"
+keywords:
+  - RoboMaster
+  - auto-aim
+  - computer-vision
+  - armor-detection
+  - extended-kalman-filter
+  - model-predictive-control
+  - C++17
+authors:
+  - name: "JSU RoboMaster Team"
+    alias: "yeyuqingzhu"
+references:
+  - type: software
+    title: "sp_vision_25"
+    abstract: "同济大学 SuperPower 战队 2025 赛季自瞄算法开源工程；本工程的直接上游。"
+    authors:
+      - name: "TongjiSuperPower"
+    repository-code: "https://github.com/TongjiSuperPower/sp_vision_25"
+    license: MIT
+    version: "604e11943b7dc3a8b466cce6d72079e5d271b2b7"
+    notes: "本仓库所有与上游一致的文件，版权归 TongjiSuperPower 所有。"
