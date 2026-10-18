@@ -9,7 +9,7 @@
   - 源码 `io/gimbal/gimbal.cpp` → 说明 `doc/code/io/gimbal/gimbal.cpp.md`
 - 每个源文件对应**一个 Markdown 文件**，文件名 = 源文件名 + `.md`。
 - 新增源码目录时，在此建立对应的映射子文件夹（目录映射见 §4 与 [`../directory_tree.md`](../directory_tree.md)）。
-- **目前只覆盖 `tools/`（25 篇）与 `io/gimbal/`（4 篇）**；其余源码目录（`io/` 其余文件、`tasks/`、`src/`、`calibration/`、`tests/`）的说明文档**尚未创建**，需要时按上表逐步补齐。
+- **目前只覆盖 `tools/`（27 篇）与 `io/gimbal/`（4 篇）**；其余源码目录（`io/` 其余文件、`tasks/`、`src/`、`calibration/`、`tests/`）的说明文档**尚未创建**，需要时按上表逐步补齐。
 
 ## 2. 维护规则（与 `AGENT.md` §5 一致）
 
@@ -43,7 +43,7 @@
 
 | 说明目录 | 对应源码目录 | 当前状态 |
 | --- | --- | --- |
-| `tools/` | `tools/` | **已完成**：25 个源文件 25 篇 |
+| `tools/` | `tools/` | **已完成**：27 个源文件 27 篇（含本项目新增 `file_logger.hpp/.cpp`） |
 | `io/gimbal/` | `io/gimbal/` | **已完成**：`gimbal.hpp/.cpp`、`laser_gimbal.hpp/.cpp` 共 4 篇 |
 | `configs/` | `configs/` | 占位（13 份 YAML 配置，无 C++ 源文件，暂不需要逐文件说明） |
 

@@ -2,6 +2,7 @@
 #define IO__GIMBAL_HPP
 
 #include <Eigen/Geometry>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -65,8 +66,9 @@ namespace io
  * 【请求-响应式链路】下位机只在 `DecodeUsb()` 成功解析到一帧 UsbCtrl 之后才回发一帧
  * 遥测（`UsbVisionSend()`）。即：**上位机不发帧，就永远收不到姿态**。所以：
  *   1) 构造函数启动线程后会先发空帧（mode=0）去"敲门"，再限时等待首帧姿态；
- *   2) `tx_thread()` 带空闲心跳：上层超过 100 ms 没调用 `send()`，就自动以 20 Hz 补发
+ *   2) `tx_thread()` 带空闲心跳：上层超过 100 ms 没调用 `send()`，就自动补发
  *      mode=0 的空帧——既保持链路/姿态回传，又保证下位机不会继续执行过期控制量。
+ *      （这个 100 ms 同时是"控制指令有效期"：调小会让低频发送方的指令被心跳盖掉）
  *
  * 【串口参数】921600 8N1（下位机 Src/usart.c 中 `huart1.Init.BaudRate = 921600`；
  * 参考仓库 robot_cmd.c 里的注释 460800 是错的）。可用 yaml 的 `baudrate` 覆盖。
@@ -89,6 +91,9 @@ constexpr int kSerialTimeoutMs = 50;         // 单次读总超时
 constexpr int kSerialInterByteMs = 5;        // 字节间超时
 constexpr int kReconnectErrorThreshold = 100;  // 连续解析错误超过此值则重连
 constexpr int kIdleHeartbeatMs = 100;        // 上层静默多久后开始补发空帧
+                                             // 它同时是"控制指令的有效期"：超过这么久没收到新指令，
+                                             // 下位机就该回到 IDLE。调小会让低频发送方（<10Hz）
+                                             // 的指令被心跳盖掉，故保持 100ms。
 constexpr int kFirstFrameTimeoutMs = 2000;   // 构造期等待首帧姿态的上限
 
 /**
@@ -192,6 +197,9 @@ struct GimbalDiagnostics
   double tx_latency_ms = 0.0;  // 写串口耗时 (ms)，指数滑动平均
   int queue_depth = 0;         // 待发送队列深度
   bool serial_ok = false;      // 串口是否打开
+  uint64_t rx_bytes = 0;       // 累计收到的原始字节数（含垃圾字节；==0 说明物理链路没通）
+  uint64_t tx_frames = 0;      // 累计成功写出的下行帧数
+  uint64_t tx_fail = 0;        // 写串口失败次数
 };
 
 class Gimbal
@@ -206,6 +214,21 @@ public:
   GimbalDiagnostics diagnostics() const;  // 实时诊断信息
   std::string str(GimbalMode mode) const;
   Eigen::Quaterniond q(std::chrono::steady_clock::time_point t);
+
+  /**
+   * @brief 带超时的姿态查询：超时没有可用数据就返回 false，**不阻塞**。
+   *
+   * `q(t)` 在插值队列为空时会永久阻塞——参数没接、下位机不回帧时，
+   * 调用线程会静默卡死（连日志都刷不出来）。测试/诊断程序应当改用本函数，
+   * 超时返回 false 后打印"还在等首帧"，把现场留下来。
+   *
+   * @param t          查询时刻（steady_clock）。
+   * @param out        [out] 成功时写入插值得到的姿态（与 q(t) 语义一致）。
+   * @param timeout_ms 最长等待时间，毫秒；<=0 表示只探一次不等待。
+   * @return true 表示 out 有效；false 表示超时。
+   * @note 内部最多等 2 帧遥测（插值需要一前一后两帧），不会无限等待。
+   */
+  bool try_q(std::chrono::steady_clock::time_point t, Eigen::Quaterniond & out, int timeout_ms);
 
   /**
    * @brief 发送控制量（弧度、绝对角）。
@@ -242,6 +265,16 @@ private:
     queue_{5000};  // 姿态插值队列，增大至 5000 以应对高速连发
 
   std::atomic<std::int64_t> last_rx_ok_ns_{0};
+
+  // 诊断用（排查"收不到首帧"时，日志要能回答：打开的到底是哪个端口、
+  // 我们发了多少字节、对方回了多少字节、回的是不是自己的回声）
+  std::string configured_port_;                        // yaml 里写的 com_port（重连时重新解析用）
+  std::string resolved_port_;                          // 实际打开的串口路径
+  std::array<uint8_t, kCtrlFrameSize> last_tx_frame_{};  // 最近一帧下行原始字节（serial_mutex_ 保护）
+  bool has_tx_frame_ = false;                          // last_tx_frame_ 是否有效
+  std::atomic<uint64_t> tx_frames_{0};                 // 成功写出的下行帧数
+  std::atomic<uint64_t> tx_fail_{0};                   // 写失败次数
+  std::atomic<uint64_t> rx_bytes_{0};                  // 收到的原始字节数
 
   // 以下统计量由 mutex_ 保护（与 state_ 同锁，避免再加一把锁）
   uint32_t frame_count_ = 0;

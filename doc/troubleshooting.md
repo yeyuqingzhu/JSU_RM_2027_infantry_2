@@ -27,6 +27,8 @@
 | 程序 abort 但看不到任何输出 | [C-2](#c-2-abort-时-printf-输出丢失) |
 | 命令跑很久被移到后台 / 超时 | [C-3](#c-3-单条命令串太多步骤导致超时) |
 | 视觉端收不到云台帧 / 构造卡在 `First q received` 前 / 找不到 `0x5A 0xA5` / crc8 一直失败 | [C-4](#c-4-视觉端收不到云台帧下位机协议版本不匹配) |
+| 改完 gimbal(v3.0) 仍连不上下位机 / `[YAML] com_port not found!` / `Failed to open serial` / `SocketCAN::open() failed` / 用错测试程序 | [C-5](#c-5-改完-iogimbalv30-适配后仍连不上下位机) |
+| `gimbal_test` 一直收不到首帧 / 进程静默卡死一行输出都没有 / 每秒刷 `No serial data for extended period` 与 `High TX latency: 551ms` | [C-6](#c-6-gimbal_test-一直收不到首帧且进程静默卡死) |
 | `/tmp` 里的临时文件下一次调用就没了 | [D-1](#d-1-tmp-在每次-bash-调用之间不保留) |
 | 写工作区外的文件被拒绝（沙箱） | [D-2](#d-2-沙箱拒绝写工作区外的文件) |
 | `file has not been read` / `file changed since it was read` | [D-3](#d-3-编辑被拒未读过或文件已被外部改动) |
@@ -216,10 +218,53 @@
   - 波特率：旧 115200 → 新 **921600**（下位机注释里的 460800 是错的，以 `Src/usart.c` 的 `huart1.Init.BaudRate` 为准）；
   - 链路是**请求-响应式**：下位机只有成功解析到一帧 `UsbCtrl` 才回发遥测，视觉端不发就永远收不到（旧实现把「等首帧」写成无超时阻塞 → 永久卡死在构造函数）。
 - **解决方案**：
-  1. 本项目 `io/gimbal/gimbal.{hpp,cpp}` 已整体重写为 v3.0（`UsbCtrl` 28 B / `UsbAutoSendToNuc` 42 B、度制绝对角、crc8、921600、构造期「敲门 + 2 s 上限」、发线程 20 Hz `mode=0` 心跳）。**不要**再用 v2.0 的帧常量去改别的文件。
+  1. 本项目 `io/gimbal/gimbal.{hpp,cpp}` 已整体重写为 v3.0（`UsbCtrl` 28 B / `UsbAutoSendToNuc` 42 B、度制绝对角、crc8、921600、构造期「敲门 + 2 s 上限」、发线程 10 Hz（100 ms）`mode=0` 心跳）。**不要**再用 v2.0 的帧常量去改别的文件。
   2. YAML 里 `com_port` 必填；`baudrate`（默认 921600）、`crc8_check`（默认 `true`）可选。若对端固件的 crc8 未填/校验策略不同，先设 `crc8_check: false` 验证链路，再回头查 crc；若误设成 115200 会表现为「能收到字节但永远拼不出帧」。
   3. 用 pty 假下位机做离线回环（`build/gimbal_verify/`：`fake_board.py` + `proto_test` + `loopback_test` + `run_loopback.sh`；**属构建产物、不入库**，重装环境后需重建）即可验证「打包/换算/心跳/解析」四条流程，不必接硬件。
 - **已修复**：2026-10-17，`io/gimbal/gimbal.hpp` 与 `io/gimbal/gimbal.cpp` 按 lt-2027 下位机协议重写（详见 [`code/io/gimbal/README.md`](code/io/gimbal/README.md)）。
+
+### C-5 改完 `io/gimbal`(v3.0) 适配后仍连不上下位机
+
+- **症状**（2026-10-18 在本机 `build_full/` 实测的原文）：
+  - `./gimbal_test configs/sentry.yaml` → `[error] [YAML] com_port not found!`，**进程立刻退出**（`tools::read` 缺键即 `exit(1)`）。
+  - `./gimbal_test configs/standard4.yaml` → `[error] [Gimbal] Failed to open serial: IO Exception (2): No such file or directory, file .../io/serial/src/impl/unix.cc, line 151.`（`com_port: /dev/gimbal` 不存在，`resolve_serial_port()` 没找到任何 `ttyUSB*/ttyACM*` 可回退 → 原样返回 → open 抛异常 → `exit(1)`）。
+  - `./gimbal_response_test configs/sentry.yaml` → 反复 `[warning] SocketCAN::open() failed: Error getting interface index!` + `[info] [Cboard] Waiting for q...`，然后**永久卡死在构造函数里的 `queue_.pop(data_ahead_)` / `queue_.pop(data_behind_)`**（`io/cboard.cpp:17-18`，无超时，日志永远等不到 `[Cboard] Opened.`）——连 `main` 循环都进不去，一个 28 B 帧都不会发出。
+  - 接上真板仍是 2 s 后 `[Gimbal] No telemetry frame within 2000ms (baud=..., crc8_check=...)`。
+- **原因**（按"最容易误判"排序）：
+  1. **用错测试程序**：`gimbal_response_test` **不使用** `io::Gimbal`，它走 `io::CBoard`（SocketCAN/CAN 帧 + `io::Command`）；`src/sentry*.cpp`、`src/standard.cpp`、`src/uav.cpp`、`src/mt_standard.cpp`、`tests/cboard_test` 同理。**改串口库对它们零影响**——拿它们验证串口适配，怎么改都"连不上"。串口路径的验证程序只有 `gimbal_test`、`fire_test`、`planner_test`、`*_mpc`。
+  2. **yaml 选错**：`configs/sentry.yaml` 只有 CAN 键（`can_interface`/`quaternion_canid`/`bullet_speed_canid`/`send_canid`），**没有 `com_port`**。串口路径要用 `configs/{standard3,standard4,demo,ascento}.yaml` 之一，或给 yaml 补 `com_port`。
+  3. **设备节点不存在**：仓库不提供任何 udev 规则（`find . -name '*.rules'` 为空），`/dev/gimbal` 只是上游约定名。本机 `/dev/gimbal`、`/dev/ttyUSB*`、`/dev/ttyACM*` 全不存在。
+  4. **接错物理口**：下位机自瞄通道是 STM32 **USART1 TTL 921600**（`application/cmd/robot_cmd.c:133` `USBVisionInit(&huart1)`；`Src/usart.c:49` `huart1.Init.BaudRate = 921600`），板载 MicroUSB 走的是**导航** DAOHANG 18 B/29 B（`MICROUSBVisionInit()`；`master_process.c:408` 注释「自瞄走 USART1，导航走 USB VCP」）。把板载 USB 插上位机 → 端口能打开但线上永远没有 `0xFF…0x0D` 的 28 B/42 B 帧 → 表现为 2 s warn 而不是打开失败。
+  5. **握手节奏压在下位机离线阈值上**：下位机 daemon 100 Hz、`reload_count = 5`（`master_process.c:275` + `application/robot_task.h:101-118` 的 `osDelay(10)`）→ **50 ms 收不到 `UsbCtrl` 就判离线**并 `USARTServiceInit()` 重启 DMA 接收；本层构造期敲门间隔正好 50 ms、空闲心跳 `kIdleHeartbeatMs = 100`（`gimbal.cpp` 的 `tx_thread()`）→ 空闲时恒为阈值的 2 倍，下位机侧会周期性刷 vision offline。
+- **解决方案**：
+  1. **先确认链路**：串口 v3.0 → `gimbal_test` / `fire_test` / `planner_test` / `*_mpc`；CAN → `gimbal_response_test` / `cboard_test` / `sentry*` / `standard` / `uav`。
+  2. 串口调试必须给含 `com_port` 的 yaml（或临时 `com_port: "/dev/ttyUSB0"`），否则第一步就死在 YAML。
+  3. 打开前先 `ls -l /dev/ttyUSB* /dev/ttyACM*`；不存在 = 物理层没通（转接线 / CH340 驱动 / 用户是否在 `dialout` 组）。需要固定名时自己做 udev 规则映射到 `/dev/gimbal`。
+  4. 端口能打开但 2 s 无帧 → 按序查：是否接在 **USART1**（不是板载 MicroUSB）、波特率 921600、固件是否为 seasky 新版 28 B/42 B、`crc8_check: false` 排除 crc。**注意：正常固件不会因 crc 失败**——下行它不校验，上行它按 `crc_8(tx_buf, 40)` 真填，`CRC_START_8 = 0x00` + sht75 表与本地位实现等价。
+  5. 代码侧加固（**2026-10-18 已实施**）：构造期敲门间隔由 50 ms 降到 **20 ms**（`kKnockIntervalMs`），稳稳低于下位机 50 ms 离线阈值；`kIdleHeartbeatMs` **保持 100 ms 不动**——它同时是「控制指令有效期」，压到 30 ms 会让发送频率低于 10 Hz 的上层指令被心跳盖掉（loopback 的 C 段就是这么 FAIL 的，已回滚并写进 C-6）。另：静默时不再每秒重连、重连不再持锁 sleep，详见 [C-6](#c-6-gimbal_test-一直收不到首帧且进程静默卡死)。
+
+### C-6 `gimbal_test` 一直收不到首帧，且进程静默卡死
+
+- **症状**（2026-10-18，用户原话：「运行 gimbal_test 一直收不到首帧，但是 uart 已经连接」）：
+  - `./build_full/gimbal_test configs/<含 com_port 的 yaml>` 跑起来后**终端几乎一行输出都没有**：只有构造期一条 `[warning]` 或 `[info]`，之后进程活着、CPU 不高、也不退出，`Ctrl-C` 才能停；
+  - 与真板/假下位机都复现；日志里可能出现 `[warning] No serial data for extended period, triggering reconnect` 每秒刷一次，以及 `[warning] High TX latency: 551.74ms`；
+  - 2 s 后（v3.0）才会打一条 `No telemetry frame within 2000ms (baud=921600, crc8_check=false)`，之后**什么都不再打**。
+- **原因**（按"最容易误判"排序）：
+  1. **`gimbal_test` 自己把自己锁死了**：主循环里 `auto q = gimbal.q(t);`（原 `tests/gimbal_test.cpp:53`）在姿态队列为空时永久阻塞在 `ThreadSafeQueue::pop/front` 的条件变量上；而它在 `gimbal.send(...)` **之前**——于是一旦首帧丢了，测试程序就**不再发任何下行帧**；下位机是**请求-响应式**（`master_process.c` 的 `DecodeUsb()` 解析成功才 `UsbVisionSend()`），收不到帧就永远不回 → 死锁、静默、无日志。**"收不到首帧"于是变成了"永远收不到首帧"。**
+  2. **旧 `read_thread` 的"没数据就重连"**：连续 4000 次空读判链路死 → `reconnect()`；旧 `reconnect()` **持 `serial_mutex_` 睡 500 ms**（把发线程一起冻住，即那条 551 ms 的 TX 延迟），且 open 后立刻 `flushInput()`——可能把刚到的帧清掉。于是"偶发丢帧"会滚成"每秒重连 + 每秒丢帧"。
+  3. **零诊断信息**：不知道实际用的是哪个设备节点（`resolve_serial_port()` 静默回退到 `/dev/ttyUSB0` 只打一条 warn）、不知道波特率、不知道发了几帧/收了几字节，因此无法区分"没发出去"、"发出去了但板子没回"、"回了但解不出"。
+  4. **一个想当然的修法会引入新 bug**：把心跳 `kIdleHeartbeatMs` 从 100 ms 压到 30 ms 去迎合下位机 50 ms 离线阈值——实测会让"发送频率 < 10 Hz 的上层指令"被心跳（`mode=0`）盖掉，环路直接失效（`build/gimbal_verify` 的 loopback C 段因此 FAIL）。心跳同时是**控制指令有效期**，不能这么压。
+- **解决方案**：
+  1. **测试/诊断程序改用 `Gimbal::try_q(t, q, timeout_ms)`**（新增，非阻塞、返回 `bool`）：拿不到姿态只打日志，然后**照常 `send()`**。请求-响应链路必须由上层持续发帧来保活，绝不能因为"没数据"停止发送。
+  2. **看日志，别猜**：日志已分流到 `logs/<源文件路径>/{run,warn,error}.log` + `state.log`（见 [`code/tools/file_logger.hpp.md`](code/tools/file_logger.hpp.md)）。**先 `cat logs/io/gimbal/gimbal.cpp/state.log`**（每秒覆盖写，最后一行就是崩溃/卡死前一秒的 `rx_bytes`/`tx_frames`/`serial_ok`），再看 `warn.log`。
+  3. **按 `rx_bytes` 分流判据**：
+     - `rx_bytes == 0` → **物理层**：TX/RX 是否交叉、GND 是否共地、是否接在 **USART1（PB7=RX / PA9=TX，不是常见的 PA9/PA10）**、波特率 921600、板子是否真在跑这套固件；
+     - `rx_bytes` 在涨但 `errors` 也在涨 → **协议层**：波特率/线序/协议版本；日志会带前 5 个坏帧的 hex dump，第 50 次还会专门提示"高度怀疑波特率不匹配或 TX/RX 接反"；
+     - 出现 `rx_echo: 收到的字节与本端刚发出的下行帧完全相同` → **TX/RX 被短接/自环**（转接板自环或接错线），下位机其实没回帧。
+  4. **回环自测法（5 秒定位 PC 侧是否无辜）**：把 USB-TTL 转接板自己的 TX-RX 短接再跑一次——看到 `rx_echo` 就说明"串口驱动 + 本程序 + 转接板"三者全好，问题 100% 在板子那一端（接线/波特率/固件）。
+  5. **静默不再疯转重连**：`read_thread` 改成三档——静默 2 s 打一次六条排查清单（只报一次）、之后每 10 s 一条计数、静默 30 s 且**从未收到任何字节**才强制重连一次；设备节点消失则立刻重连。`reconnect()` 也不再持锁 sleep，并会重新 `resolve_serial_port()`（拔插后 `ttyUSB0`/`ttyUSB1` 会互换）。
+- **已修复**：2026-10-18，`tests/gimbal_test.cpp`（改 `try_q` + 每秒等待诊断）、`io/gimbal/gimbal.{hpp,cpp}`（`try_q`、`rx_bytes/tx_frames/tx_fail` 诊断字段、首帧/首字节 hex 取证、回环自检、静默三档、`state.log` 快照、`reconnect` 不持锁 + 重解析端口、端口候选身份表）、`tools/file_logger.{hpp,cpp}`（覆盖式分文件日志器）。
+- **验证**（离线，`build/gimbal_verify/`，不入库）：重跑 `run_loopback.sh` 18 条断言全过 `loopback_test PASS`；`silent_test` + pty 三种故障模式分别复现出「0 字节 → 物理层清单」「垃圾字节 → 坏帧 hex + 波特率提示」「自环 → rx_echo」；`gimbal_test` 接静默 pty 时每秒打印 `仍在等待首帧` 且 `tx_frames` 持续增长（不再自锁）。
 
 ---
 

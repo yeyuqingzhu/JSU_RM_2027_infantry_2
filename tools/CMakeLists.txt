@@ -12,6 +12,7 @@ add_library(tools OBJECT
   crc.cpp
   exiter.cpp
   extended_kalman_filter.cpp
+  file_logger.cpp
   img_tools.cpp
   logger.cpp
   math_tools.cpp

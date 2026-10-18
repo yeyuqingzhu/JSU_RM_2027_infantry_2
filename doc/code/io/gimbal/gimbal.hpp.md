@@ -14,7 +14,7 @@
 | `kSerialTimeoutMs` | 50 | `serial::Timeout` 总超时 |
 | `kSerialInterByteMs` | 5 | 字节间超时（切帧用） |
 | `kReconnectErrorThreshold` | 100 | 连续解析失败超过此值即重连 |
-| `kIdleHeartbeatMs` | 100 | 上层静默超过此值后补发 `mode=0` 心跳（20 Hz） |
+| `kIdleHeartbeatMs` | 100 | 上层静默超过此值后补发 `mode=0` 心跳（10 Hz）。**它同时是「控制指令有效期」**：调小会让发送频率 < 10 Hz 的上层指令被心跳盖掉，故保持 100 ms（下位机 50 ms 判离线阈值靠 20 ms 的握手敲门来满足，不靠它） |
 | `kFirstFrameTimeoutMs` | 2000 | 构造期等首帧的上限（超时只 warn） |
 
 ### `uint8_t crc8(const uint8_t * data, std::size_t size)`
@@ -78,7 +78,7 @@
 | --- | --- |
 | `enum class GimbalMode` | `IDLE`、`AUTO_AIM`、`SMALL_BUFF`、`BIG_BUFF`（由上行帧 `mode` 0–3 映射，非法值回落 `IDLE` 并告警） |
 | `struct GimbalState` | `yaw`、`yaw_vel`、`pitch`、`pitch_vel`、`bullet_speed`、`bullet_count`（**弧度制**） |
-| `struct GimbalDiagnostics` | `frame_count`、`error_count`、`rx_frame_rate`、`rx_latency_ms`、`tx_latency_ms`、`queue_depth`、`serial_ok`（v3.0 起**七项全部填充**） |
+| `struct GimbalDiagnostics` | `frame_count`、`error_count`、`rx_frame_rate`、`rx_latency_ms`、`tx_latency_ms`、`queue_depth`、`serial_ok`，以及 2026-10-18 新增的 `rx_bytes`（累计收到的原始字节）、`tx_frames`（成功写出的下行帧数）、`tx_fail`（写失败次数）——**十项全部填充**。`rx_bytes == 0` 是「物理层没通」的判据，`tx_frames` 是「我们确实在发」的证据 |
 
 ## 类 `io::Gimbal`
 
@@ -93,11 +93,13 @@
   io::Gimbal gimbal(config_path);          // 打开串口 + 敲门等首帧（最多 2 s，超时只 warn）
   if (gimbal.mode() == io::GimbalMode::AUTO_AIM) {
     auto gs = gimbal.state();              // 弧度制快照
-    Eigen::Quaterniond q = gimbal.q(t);    // 按图像时间戳插值
+    Eigen::Quaterniond q = gimbal.q(t);    // 按图像时间戳插值（无帧时【永久阻塞】，慎用）
+    // 测试/诊断程序请改用带超时的版本：
+    // if (!gimbal.try_q(t, q, 20)) { /* 还没收到帧，打日志继续 send() */ }
     gimbal.send(true, fire, yaw, yaw_vel, yaw_acc, pitch, pitch_vel, pitch_acc);  // 弧度、绝对角
   }
   ```
-- **备注**：非拷贝、不可重入；`q(t)` 会**消费**队列，必须按时间戳单调递增调用；不调用 `send()` 时发线程仍以 20 Hz 发 `mode=0` 心跳（v2.0 没有心跳，下位机若不支持会有脱控风险——v3.0 的板子是「收到才回」，没有心跳视觉端就收不到姿态）。
+- **备注**：非拷贝、不可重入；`q(t)` 会**消费**队列，必须按时间戳单调递增调用，且**队列为空时永久阻塞**（要超时语义用 `try_q`）；不调用 `send()` 时发线程仍以 10 Hz 发 `mode=0` 心跳（v2.0 没有心跳，下位机若不支持会有脱控风险——v3.0 的板子是「收到才回」，没有心跳视觉端就收不到姿态）。
 
 ### 成员变量
 
@@ -116,6 +118,10 @@
 | `frame_count_` / `error_count_` / `rx_frame_rate_` / `last_frame_ns_` | 统计量 | 受 `mutex_` 保护；`error_count_` 在伪帧头滑动时会被放大 |
 | `tx_latency_ms_` | `std::atomic<double>` | 最近一次写串口耗时（EMA） |
 | `baudrate_` / `crc8_check_` | `int` / `bool` | 配置项：`yaml` 的 `baudrate`（默认 921600）、`crc8_check`（默认 true） |
+| `configured_port_` | `std::string` | yaml 里写的 `com_port`；`reconnect()` 用它重新解析节点（拔插后 `ttyUSB0`/`ttyUSB1` 会互换） |
+| `resolved_port_` | `std::string` | 实际打开的端口路径（日志取证用） |
+| `last_tx_frame_` / `has_tx_frame_` | `std::array<uint8_t, 28>` / `bool` | 最近一次写出的下行原始字节（`serial_mutex_` 保护），接收侧据此判断「收到的是不是自己的回声」 |
+| `tx_frames_` / `tx_fail_` / `rx_bytes_` | `std::atomic<uint64_t>` | 诊断计数：成功写出的帧数 / 写失败次数 / 累计收到的原始字节数 |
 
 ### 私有函数
 
@@ -125,6 +131,6 @@
 | `UsbCtrl pack_ctrl(const VisionToGimbal & cmd) const` | 逻辑帧 → 28B 线帧：弧度转度、填 crc8 与帧界 |
 | `void enqueue_cmd(const VisionToGimbal & cmd)` | 入 `tx_queue_` 并 `tx_backlog_++` |
 | `void write_ctrl(const UsbCtrl & frame)` | 持锁写串口 + 发送延迟统计 |
-| `void read_thread()` / `void tx_thread()` / `void reconnect()` | 读线程主循环 / 发线程主循环（含心跳）/ 最多 15 次的重连流程 |
+| `void read_thread()` / `void tx_thread()` / `void reconnect()` | 读线程主循环（含静默三档/回环自检/状态快照）/ 发线程主循环（含心跳与 5 s 摘要）/ 最多 15 次的重连流程（不持锁 sleep，重解析端口） |
 
 > v2.0 里的 `bool read(uint8_t*, size_t)`（有定义无调用）与 `bool findFrameHead()`（无定义无调用）已在 v3.0 中删除，帧头查找内联在 `read_thread` 的滑动窗口里。

@@ -2,7 +2,7 @@
 
 - **对应源码目录**：`tools/`
 - **规划职责**：底层工具与函数：数学、时间、滤波、日志、配置解析、并发容器、调试可视化等通用件（阶段 1 重点）
-- **当前状态**：**阶段 1 迁移已完成** —— 25 个源文件自 sp_vision_25（同济大学 SuperPower 战队 25 赛季视觉框架）的 `tools/` 逐个迁移，并补充详细中文注释。
+- **当前状态**：**阶段 1 迁移已完成** —— 25 个源文件自 sp_vision_25（同济大学 SuperPower 战队 25 赛季视觉框架）的 `tools/` 逐个迁移，并补充详细中文注释；另有 **1 个本项目新增**的源文件对（`file_logger.hpp/.cpp`，按源文件分文件夹的覆盖式日志器），无上游对应物。
 
 ## 文件清单
 
@@ -14,6 +14,8 @@
 | `exiter.cpp` | [exiter.cpp.md](exiter.cpp.md) | 注册 SIGINT 处理，捕获 Ctrl+C 后置退出标志 |
 | `extended_kalman_filter.hpp` | [extended_kalman_filter.hpp.md](extended_kalman_filter.hpp.md) | 扩展卡尔曼滤波器（线性/非线性 predict 与 update 重载、卡方检验数据） |
 | `extended_kalman_filter.cpp` | [extended_kalman_filter.cpp.md](extended_kalman_filter.cpp.md) | EKF 的预测/更新实现（含 NIS 卡方检验与统计） |
+| `file_logger.hpp` | [file_logger.hpp.md](file_logger.hpp.md) | 按源文件分文件夹的覆盖式日志器接口：`logs/<源文件>/{run,warn,error,state}.log`，四档全部有界、新覆盖旧 |
+| `file_logger.cpp` | [file_logger.cpp.md](file_logger.cpp.md) | 日志器实现：三档 `rotating_file_sink`（`max_files=1`）+ 控制台 sink、`snapshot()` 覆盖写 `state.log`、`sanitize()` 防路径穿越 |
 | `img_tools.hpp` | [img_tools.hpp.md](img_tools.hpp.md) | OpenCV 图像绘制辅助接口（点、点集、文字） |
 | `img_tools.cpp` | [img_tools.cpp.md](img_tools.cpp.md) | 绘制辅助实现 |
 | `logger.hpp` | [logger.hpp.md](logger.hpp.md) | 全局日志器接口（spdlog） |

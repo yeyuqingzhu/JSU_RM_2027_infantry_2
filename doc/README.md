@@ -10,7 +10,7 @@
 | [`directory_tree.md`](directory_tree.md) | **项目目录树**：包含每个文件、文件夹的概要；含构建目标一览与计划骨架遗留目录说明 |
 | [`executables.md`](executables.md) | **可执行程序一览**：42 个构建目标（本机产出 35 个）的作用、用法、默认配置与硬件依赖；含「按需求找程序」速查表 |
 | [`troubleshooting.md`](troubleshooting.md) | **问题与解决方案**：构建/编译/测试/环境/工具踩过的坑，含按症状检索的快速索引。**遇到问题先查这里，按既定方案解决，不要重复思考** |
-| [`code/`](code/README.md) | **逐文件函数作用说明**：按项目结构建子文件夹，每个源文件对应一个 Markdown（**已覆盖 `code/tools/`（25 篇）与 `code/io/gimbal/`（4 篇）**，其余源码目录待补齐） |
+| [`code/`](code/README.md) | **逐文件函数作用说明**：按项目结构建子文件夹，每个源文件对应一个 Markdown（**已覆盖 `code/tools/`（27 篇）与 `code/io/gimbal/`（4 篇）**，其余源码目录待补齐） |
 
 项目入口文件见仓库根目录的 [`AGENT.md`](../AGENT.md)（项目概要、总目标、当前状态、**参考文献索引**、维护规则）。
 

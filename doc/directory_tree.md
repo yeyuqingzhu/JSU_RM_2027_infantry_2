@@ -27,6 +27,7 @@ JSU_RM_2027_infantry_2/
 │   ├── crc.hpp / crc.cpp
 │   ├── exiter.hpp / exiter.cpp
 │   ├── extended_kalman_filter.hpp / extended_kalman_filter.cpp
+│   ├── file_logger.hpp / file_logger.cpp   # 本项目新增：按源文件分文件夹的覆盖式日志器
 │   ├── img_tools.hpp / img_tools.cpp
 │   ├── logger.hpp / logger.cpp
 │   ├── math_tools.hpp / math_tools.cpp
@@ -137,7 +138,7 @@ JSU_RM_2027_infantry_2/
     ├── troubleshooting.md         # 问题与解决方案（遇到问题先查这里）
     └── code/                      # 逐文件函数作用说明
         ├── README.md              # 命名约定、文档模板与映射表
-        ├── tools/                 # 已覆盖：README + 25 篇逐文件说明
+        ├── tools/                 # 已覆盖：README + 27 篇逐文件说明（含本项目新增 file_logger）
         ├── io/gimbal/             # 已覆盖：README + 4 篇逐文件说明
         └── configs/               # 占位（13 份 YAML，无 C++ 源文件）
 ```
@@ -189,7 +190,7 @@ JSU_RM_2027_infantry_2/
 | `command.hpp` | `struct Command { bool control, shoot; double yaw, pitch, horizon_distance; }` —— Aimer / Planner / CommandGener 三种决策器的统一输出 |
 | `cboard.hpp` / `cboard.cpp` | RoboMaster C 板（CAN，legacy）：`Mode{idle,auto_aim,small_buff,big_buff,outpost}`、`ShootMode`；`imu_at(t)` 按时间戳 slerp 插值四元数；`send(Command)` 打包 yaw/pitch 定点 `int16(×1e4)` 成 8 字节 CAN 帧 |
 | `socketcan.hpp` | SocketCAN 纯头文件封装：`socket(PF_CAN)` + `ioctl(SIOCGIFINDEX)` + epoll 读线程 + 每 100ms 巡检的守护重连线程 |
-| `gimbal/gimbal.hpp` / `gimbal.cpp` | **当前主力输出**：串口协议 **v3.0**（2027 赛季 lt-2027 哨兵下位机）`[0xFF][MODE][PAYLOAD][CRC8][0x0D]`，921600 8N1；`UsbCtrl`（28 B 视觉→云台：绝对角 + 速度/加速度前馈，**度制**）、`UsbAutoSendToNuc`（42 B 云台→视觉：mode/四元数/yaw,yaw_vel,pitch,pitch_vel/bullet_speed/bullet_count，度制）、逻辑帧 `VisionToGimbal`（弧度）；`crc8()` 与下位机查表等价；`q(t)` 时间对齐插值、`state()` 快照、七项诊断；请求-响应链路上带 20 Hz 空闲心跳、构造期「敲门 + 2 s 上限」 |
+| `gimbal/gimbal.hpp` / `gimbal.cpp` | **当前主力输出**：串口协议 **v3.0**（2027 赛季 lt-2027 哨兵下位机）`[0xFF][MODE][PAYLOAD][CRC8][0x0D]`，921600 8N1；`UsbCtrl`（28 B 视觉→云台：绝对角 + 速度/加速度前馈，**度制**）、`UsbAutoSendToNuc`（42 B 云台→视觉：mode/四元数/yaw,yaw_vel,pitch,pitch_vel/bullet_speed/bullet_count，度制）、逻辑帧 `VisionToGimbal`（弧度）；`crc8()` 与下位机查表等价；`q(t)` 时间对齐插值、`state()` 快照、七项诊断；请求-响应链路上带 10 Hz（100 ms）空闲心跳、构造期「敲门 + 2 s 上限」 |
 | `gimbal/laser_gimbal.hpp` / `.cpp` | Lracking 激光云台协议：**度制 + 绝对角度**（API 层转弧度），仅 `laser_gimbal_test` 使用 |
 | `hikrobot/` | 海康 `MvCameraControl` 封装（`HikRobot : CameraBase`）：SDK 句柄 + 取图线程 + 守护线程（100ms 巡检，USB 断线用 libusb 复位重开）；`include/`、`lib/{amd64,arm64}` 为 vendored SDK |
 | `mindvision/` | 迈德 `MVSDK` 同构封装（`CameraSdkInit/CameraPlay/CameraGetImageBuffer/CameraImageProcess`） |
@@ -306,6 +307,7 @@ JSU_RM_2027_infantry_2/
 | `crc.hpp` / `crc.cpp` | CRC8/CRC16 校验：`get_crc8`/`check_crc8`/`get_crc16`/`check_crc16`，用于下位机通信帧校验 |
 | `exiter.hpp` / `exiter.cpp` | `Exiter`：构造时注册 SIGINT 处理，`exit()` 返回是否收到 Ctrl+C，供主循环优雅退出 |
 | `extended_kalman_filter.hpp` / `.cpp` | `ExtendedKalmanFilter`：线性/非线性 `predict` 与 `update` 重载，含 NIS/NEES 卡方检验与失败滑动窗口 |
+| `file_logger.hpp` / `file_logger.cpp` | **本项目新增（无上游对应物）**`tools::file_logger(source)`：每个源文件一套 `logs/<源文件路径>/{run,warn,error}.log`（三档「包含」关系，`rotating_file_sink_mt` + `max_files=1` 新覆盖旧，单档上限 512/128/64 KB）+ `snapshot()` 覆盖写 `state.log`；`sanitize()` 清洗目录名防路径穿越 |
 | `img_tools.hpp` / `img_tools.cpp` | OpenCV 绘制辅助：`draw_point`/`draw_points`（Point 与 Point2f 两个重载）/`draw_text` |
 | `logger.hpp` / `logger.cpp` | `logger()`：spdlog 全局日志器单例（文件 sink + 彩色控制台 sink，info 触发 flush） |
 | `math_tools.hpp` / `math_tools.cpp` | 纯数学工具：`limit_rad`、`eulers`、`rotation_matrix`、`xyz2ypd`/`ypd2xyz` 及雅可比、`delta_time`、`get_abs_angle`、`square`、`limit_min_max` |
@@ -318,7 +320,21 @@ JSU_RM_2027_infantry_2/
 | `trajectory.hpp` / `trajectory.cpp` | `Trajectory`：不考虑空气阻力的抛体弹道解算（初速/水平距离/高度 → pitch 与飞行时间，含无解判定） |
 | `yaml.hpp` | `tools::load` / `tools::read`：YAML 读取辅助，键缺失记日志并 `exit(1)`（带默认值重载可回退） |
 
-> 函数级说明见 [`code/tools/`](code/tools/README.md)（25 篇，与源文件一一对应）。
+> 函数级说明见 [`code/tools/`](code/tools/README.md)（**27 篇，与 27 个源文件一一对应**；其中 `file_logger.hpp/.cpp` 两篇为本项目新增，无上游对应物）。
+
+### 运行期目录 `logs/`（不入库，`.gitignore` 已忽略）
+
+日志分两套并存：
+
+| 路径 | 产生者 | 说明 |
+| --- | --- | --- |
+| `logs/<时间戳>.log` | `tools::logger()` | 全局单文件日志，`basic_file_sink` + truncate，一次运行一份，**不轮转**（旧行为，其它可执行程序仍在用） |
+| `logs/<源文件路径>/run.log` | `tools::file_logger()` | 运行日志（debug/info/warn/error 全收），覆盖式轮转 |
+| `logs/<源文件路径>/warn.log` | 同上 | 警告日志（warn 及以上） |
+| `logs/<源文件路径>/error.log` | 同上 | 报错日志（error 及以上） |
+| `logs/<源文件路径>/state.log` | `tools::snapshot()` | 每秒覆盖写的状态快照，`Ctrl-C`/崩溃后先看它 |
+
+例如 `io/gimbal/gimbal.cpp` 打日志就落在 `logs/io/gimbal/gimbal.cpp/` 下，`tests/gimbal_test.cpp` 落在 `logs/tests/gimbal_test.cpp/` 下。
 
 ### 2.10 已清理的阶段 0 计划骨架目录（2026-10-17 删除）
 
@@ -360,7 +376,7 @@ JSU_RM_2027_infantry_2/
 | `doc/troubleshooting.md` | **问题与解决方案**：含按症状检索的快速索引与条目模板。遇到问题先查这里；解决新问题后必须追加条目 |
 | `doc/code/` | 逐文件函数作用说明 |
 | `doc/code/README.md` | 逐文件说明的命名约定、文档模板、维护规则 |
-| `doc/code/tools/README.md` + 25 篇 | tools 文件清单、概要、与 sp_vision_25 的差异汇总 |
+| `doc/code/tools/README.md` + 27 篇 | tools 文件清单、概要、与 sp_vision_25 的差异汇总 |
 | `doc/code/io/gimbal/README.md` + 4 篇 | `gimbal.hpp/.cpp`、`laser_gimbal.hpp/.cpp` 的函数作用与已知问题 |
 | `doc/code/configs/README.md` | 占位（13 份 YAML，无 C++ 源文件） |
 
@@ -371,6 +387,7 @@ JSU_RM_2027_infantry_2/
 | 2026-10-11 | 建立 `AGENT.md`、`.gitignore`、`doc/` 文档体系；源码目录以 `.gitkeep` 占位 |
 | 2026-10-11 | 更正命名：`auto_fuction/`→`auto_function/`、`cmakelists.txt`→`CMakeLists.txt` |
 | 2026-10-11 | **阶段 1 完成**：自 sp_vision_25 迁移 `tools/` 全部 25 个源文件并补充中文注释；新增 `CMakeLists.txt` 与 `tools/CMakeLists.txt`；新增 `doc/code/tools/` 25 篇逐文件说明 |
+| 2026-10-18 | 新增 `tools/file_logger.{hpp,cpp}`（按源文件分文件夹的覆盖式日志器，本项目原创）与两篇说明文档，`doc/code/tools/` 变为 27 篇；`doc/directory_tree.md` 补运行期 `logs/` 目录结构 |
 | 2026-10-11 | 新增 `doc/troubleshooting.md`（17 条问题与解决方案 + 快速索引）；`AGENT.md` 新增 §6「问题排查：先查文档，不要重复思考」 |
 | 2026-10-17 | **sp_vision_25 剩余部分全量拷入**：新增 `io/`（99 文件）、`tasks/`（71）、`src/`（13）、`calibration/`（6）、`tests/`（22）、`configs/`（13 YAML）、`assets/`（2.2 GB）及 `.clang-format`、`LICENSE`、`autostart.sh`、`buff_layout.xml`、`mpc_layout.xml` |
 | 2026-10-17 | 顶层 `CMakeLists.txt`、`.gitignore`、`readme.md` 被上游同名文件覆盖（`tools/` 未被覆盖，仍为注释版）；见 [troubleshooting A-5/A-7/D-5](troubleshooting.md) |

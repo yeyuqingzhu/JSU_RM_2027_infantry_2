@@ -5,7 +5,7 @@
 #include <thread>
 
 #include "tools/exiter.hpp"
-#include "tools/logger.hpp"
+#include "tools/file_logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/plotter.hpp"
 
@@ -28,6 +28,8 @@ int main(int argc, char * argv[])
 
   tools::Exiter exiter;
   tools::Plotter plotter;
+  // 本文件独立的日志目录：logs/tests/gimbal_test.cpp/{run,warn,error,state}.log
+  auto log = tools::file_logger("tests/gimbal_test.cpp");
 
   io::Gimbal gimbal(config_path);
 
@@ -39,18 +41,31 @@ int main(int argc, char * argv[])
   auto fire_count = 0;
   auto fire_stamp = std::chrono::steady_clock::now();
   auto first_fired = false;
+  auto last_wait_report = std::chrono::steady_clock::now();
 
   while (!exiter.exit()) {
     auto mode = gimbal.mode();
 
     if (mode != last_mode) {
-      tools::logger()->info("Gimbal mode changed: {}", gimbal.str(mode));
+      log->info("Gimbal mode changed: {}", gimbal.str(mode));
       last_mode = mode;
     }
 
     auto t = std::chrono::steady_clock::now();
     auto state = gimbal.state();
-    auto q = gimbal.q(t);
+
+    // 用带超时的 try_q 代替 q(t)：q(t) 在插值队列为空时会【永久阻塞】。
+    // 一旦卡在这里，下面的 send() 也不会再执行，而"下位机只在收到帧之后才回帧"，
+    // 于是链路永久沉默 —— 现场看到的就是"一直收不到首帧"且毫无输出。
+    Eigen::Quaterniond q = Eigen::Quaterniond::Identity();
+    const bool q_ok = gimbal.try_q(t, q, 20);
+    if (!q_ok && t - last_wait_report >= 1s) {
+      last_wait_report = t;
+      const auto d = gimbal.diagnostics();
+      log->warn(
+        "仍在等待首帧: rx_bytes={} tx_frames={} errors={} serial_ok={} (详情见 logs/io/gimbal/gimbal.cpp)",
+        d.rx_bytes, d.tx_frames, d.error_count, d.serial_ok ? "yes" : "no");
+    }
     auto ypr = tools::eulers(q, 2, 1, 0);
 
     auto fired = state.bullet_count > last_bullet_count;
@@ -58,7 +73,7 @@ int main(int argc, char * argv[])
 
     if (!first_fired && fired) {
       first_fired = true;
-      tools::logger()->info("Gimbal first fired after: {:.3f}s", tools::delta_time(t, fire_stamp));
+      log->info("Gimbal first fired after: {:.3f}s", tools::delta_time(t, fire_stamp));
     }
 
     if (fire && fire_count > 20) {

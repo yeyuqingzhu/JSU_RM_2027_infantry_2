@@ -8,7 +8,7 @@
  *       * PopWhenFull == true ：先弹出队首（丢弃最旧元素），再入队；
  *       * PopWhenFull == false：调用 full_handler_ 回调后，直接丢弃本次待入队的元素。
  *   - pop() / front() / pop(T &) 在队列为空时会阻塞等待，直到有新元素入队或被 clear() 唤醒；
- *   - back() / empty() / clear() 为非阻塞的辅助接口。
+ *   - back() / empty() / size() / clear() 为非阻塞的辅助接口。
  *
  * 【来源】
  *   sp_vision_25 项目 tools/thread_safe_queue.hpp（原样迁移）。
@@ -173,6 +173,18 @@ public:
   {
     std::unique_lock<std::mutex> lock(mutex_);
     return queue_.empty();
+  }
+
+  /**
+   * @brief 返回当前元素个数（非阻塞）。
+   * @return 队列当前长度。
+   * @note 与 empty() 一样，返回值在其他线程并发操作后立刻可能失效，只适合做
+   *       诊断统计或"限时等待前先探一下深度"这类用途（例如 Gimbal::try_q()）。
+   */
+  size_t size()
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return queue_.size();
   }
 
   /**
