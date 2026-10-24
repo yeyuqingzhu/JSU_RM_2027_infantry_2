@@ -54,17 +54,28 @@ int main(int argc, char * argv[])
     auto t = std::chrono::steady_clock::now();
     auto state = gimbal.state();
 
+    // 先发后取：下位机是"收一帧回一帧"，先发才能让本次回帧落进 [t_a, t_b] 插值窗口。
+    // 顺序反了就得等下一帧，20ms 超时在 34Hz 遥测下必然误报"仍在等待首帧"。
+    gimbal.send(true, test_fire && fire, 1, 0, 0, 0, 0, 0);
+
     // 用带超时的 try_q 代替 q(t)：q(t) 在插值队列为空时会【永久阻塞】。
-    // 一旦卡在这里，下面的 send() 也不会再执行，而"下位机只在收到帧之后才回帧"，
+    // 一旦卡在这里，后面的 send() 也不会再执行，而"下位机只在收到帧之后才回帧"，
     // 于是链路永久沉默 —— 现场看到的就是"一直收不到首帧"且毫无输出。
     Eigen::Quaterniond q = Eigen::Quaterniond::Identity();
-    const bool q_ok = gimbal.try_q(t, q, 20);
+    const bool q_ok = gimbal.try_q(t, q, 50);
     if (!q_ok && t - last_wait_report >= 1s) {
       last_wait_report = t;
       const auto d = gimbal.diagnostics();
-      log->warn(
-        "仍在等待首帧: rx_bytes={} tx_frames={} errors={} serial_ok={} (详情见 logs/io/gimbal/gimbal.cpp)",
-        d.rx_bytes, d.tx_frames, d.error_count, d.serial_ok ? "yes" : "no");
+      if (d.frame_count == 0) {
+        log->warn(
+          "仍在等待首帧: rx_bytes={} tx_frames={} errors={} serial_ok={} (详情见 logs/io/gimbal/gimbal.cpp)",
+          d.rx_bytes, d.tx_frames, d.error_count, d.serial_ok ? "yes" : "no");
+      } else {
+        log->warn(
+          "遥测在到但取不到姿态(插值队列凑不出两帧): rx_frames={} rx_bytes={} errors={} "
+          "(详情见 logs/io/gimbal/gimbal.cpp)",
+          d.frame_count, d.rx_bytes, d.error_count);
+      }
     }
     auto ypr = tools::eulers(q, 2, 1, 0);
 
@@ -88,8 +99,6 @@ int main(int argc, char * argv[])
       first_fired = false;
     }
     fire_count++;
-
-    gimbal.send(true, test_fire && fire, 1, 0, 0, 0, 0, 0);
 
     nlohmann::json data;
     data["q_yaw"] = ypr[0];
